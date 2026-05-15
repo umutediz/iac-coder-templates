@@ -170,11 +170,10 @@ locals {
     ENVBUILDER_WORKSPACE_FOLDER       = local.workspace_folder
     ENVBUILDER_LAYER_CACHE_DIR        = local.layer_cache_dir
     ENVBUILDER_BASE_IMAGE_CACHE_DIR   = local.base_image_cache_dir
-    ENVBUILDER_CACHE_REPO             = var.cache_repo
-    ENVBUILDER_PUSH_IMAGE             = var.cache_repo != "" ? "true" : ""
-    ENVBUILDER_INSECURE               = tostring(var.insecure_cache_repo)
-    ENVBUILDER_REMOTE_REPO_BUILD_MODE = "true"
-    HOME                              = "/home/coder"
+    ENVBUILDER_CACHE_REPO = var.cache_repo
+    ENVBUILDER_PUSH_IMAGE = var.cache_repo != "" ? "true" : ""
+    ENVBUILDER_INSECURE   = tostring(var.insecure_cache_repo)
+    HOME                  = "/home/coder"
   }
 
   desktop_settings      = local.xfce_enabled ? file("${path.module}/scripts/xfce-settings.sh") : ""
