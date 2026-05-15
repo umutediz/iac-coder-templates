@@ -13,10 +13,10 @@ mkdir -p "$HOME/.vnc"
 touch "$HOME/.Xauthority"
 chmod 600 "$HOME/.Xauthority" || true
 
-cat > "$HOME/.vnc/xstartup" <<'EOF'
+cat > /tmp/vnc-xstartup <<'EOF'
 ${vnc_xstartup}
 EOF
-chmod +x "$HOME/.vnc/xstartup"
+chmod +x /tmp/vnc-xstartup
 
 cat > "$HOME/.vnc/config" <<'EOF'
 ${vnc_config}
@@ -29,7 +29,7 @@ nginx -s stop -c /tmp/novnc-coder/nginx.conf 2>/dev/null || true
 rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 2>/dev/null || true
 rm -f /tmp/novnc-nginx.pid 2>/dev/null || true
 
-vncserver :1
+vncserver :1 -xstartup /tmp/vnc-xstartup
 
 websockify \
   --daemon \
