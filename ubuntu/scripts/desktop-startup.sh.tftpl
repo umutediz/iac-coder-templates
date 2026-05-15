@@ -5,18 +5,17 @@ if [ ! -f "$HOME/.bashrc" ]; then
 fi
 
 export DISPLAY=:1
-export XAUTHORITY=/tmp/.Xauthority
 
 ${desktop_settings}
 ${desktop_pre_start}
 
 mkdir -p "$HOME/.vnc"
-touch "$XAUTHORITY"
+touch "$HOME/.Xauthority"
 
-cat > /tmp/vnc-xstartup <<'EOF'
+cat > "$HOME/.vnc/xstartup" <<'EOF'
 ${vnc_xstartup}
 EOF
-chmod +x /tmp/vnc-xstartup
+chmod +x "$HOME/.vnc/xstartup"
 
 cat > "$HOME/.vnc/config" <<'EOF'
 ${vnc_config}
@@ -29,7 +28,7 @@ nginx -s stop -c /tmp/novnc-coder/nginx.conf 2>/dev/null || true
 rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 2>/dev/null || true
 rm -f /tmp/novnc-nginx.pid 2>/dev/null || true
 
-vncserver :1 -xstartup /tmp/vnc-xstartup
+vncserver :1
 
 websockify \
   --daemon \

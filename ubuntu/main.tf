@@ -370,7 +370,7 @@ resource "kubernetes_deployment_v1" "workspace" {
           ]
 
           security_context {
-            run_as_user = 0
+            run_as_user = 1000
           }
 
           volume_mount {
