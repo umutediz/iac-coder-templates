@@ -16,6 +16,11 @@ provider "coder" {}
 # Uses in-cluster kubeconfig when running inside the Coder pod.
 provider "kubernetes" {}
 
+moved {
+  from = module.code-server[0].coder_app.code-server
+  to   = coder_app.code_server[0]
+}
+
 # ─── Admin variables ─────────────────────────────────────────────────────────
 
 variable "namespace" {
