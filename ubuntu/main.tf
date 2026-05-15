@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.25"
     }
+    envbuilder = {
+      source  = "coder/envbuilder"
+      version = "~> 1.0"
+    }
   }
 }
 
@@ -15,6 +19,7 @@ provider "coder" {}
 
 # Uses in-cluster kubeconfig when running inside the Coder pod.
 provider "kubernetes" {}
+provider "envbuilder" {}
 
 # ─── Admin variables ─────────────────────────────────────────────────────────
 
@@ -40,6 +45,18 @@ variable "insecure_cache_repo" {
   description = "Enable this option if your cache registry does not serve HTTPS"
   type        = bool
   default     = true
+}
+
+variable "template_repo_url" {
+  description = "Public Git repository containing the Ubuntu envbuilder Dockerfiles"
+  type        = string
+  default     = "https://github.com/umutediz/iac-coder-templates.git"
+}
+
+variable "template_repo_ref" {
+  description = "Git ref for template_repo_url. Keep this aligned with the pushed template version."
+  type        = string
+  default     = "main"
 }
 
 # ─── User parameters ─────────────────────────────────────────────────────────
@@ -134,19 +151,22 @@ locals {
   home_pvc_name    = local.shared_home_name
   home_volume_size = "4Gi"
 
-  builder_image         = "ghcr.io/coder/envbuilder:1.3.0"
-  dockerfile_variant    = local.desktop_enabled ? "xfce" : "cli"
-  dockerfile_path       = "${path.module}/dockerfiles/ubuntu-${data.coder_parameter.os_version.value}-${local.dockerfile_variant}.Dockerfile"
-  build_context_cm_name = "coder-build-context-${local.workspace_suffix}"
-  workspace_folder      = "/workspaces/context"
-  layer_cache_dir       = "${local.workspace_folder}/.cache/envbuilder/layers"
-  base_image_cache_dir  = "${local.workspace_folder}/.cache/envbuilder/base"
+  builder_image        = "ghcr.io/coder/envbuilder:1.3.0"
+  dockerfile_variant   = local.desktop_enabled ? "xfce" : "cli"
+  dockerfile_path      = "ubuntu/dockerfiles/ubuntu-${data.coder_parameter.os_version.value}-${local.dockerfile_variant}.Dockerfile"
+  build_context_path   = "ubuntu"
+  template_git_url     = var.template_repo_ref == "" ? var.template_repo_url : "${var.template_repo_url}#refs/heads/${var.template_repo_ref}"
+  workspace_folder     = "/workspaces/iac-coder-templates"
+  layer_cache_dir      = "${local.workspace_folder}/.cache/envbuilder/layers"
+  base_image_cache_dir = "${local.workspace_folder}/.cache/envbuilder/base"
 
   envbuilder_env = {
     CODER_AGENT_TOKEN                 = coder_agent.main.token
     CODER_AGENT_URL                   = replace(data.coder_workspace.me.access_url, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
     ENVBUILDER_INIT_SCRIPT            = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
-    ENVBUILDER_DOCKERFILE_PATH        = "Dockerfile"
+    ENVBUILDER_GIT_URL                = local.template_git_url
+    ENVBUILDER_DOCKERFILE_PATH        = local.dockerfile_path
+    ENVBUILDER_BUILD_CONTEXT_PATH     = local.build_context_path
     ENVBUILDER_WORKSPACE_FOLDER       = local.workspace_folder
     ENVBUILDER_LAYER_CACHE_DIR        = local.layer_cache_dir
     ENVBUILDER_BASE_IMAGE_CACHE_DIR   = local.base_image_cache_dir
@@ -173,6 +193,18 @@ locals {
   _cli_startup = file("${path.module}/scripts/cli-startup.sh")
 
   startup_script = local.desktop_enabled ? local._desktop_startup : local._cli_startup
+}
+
+resource "envbuilder_cached_image" "ubuntu" {
+  count              = var.cache_repo == "" ? 0 : data.coder_workspace.me.start_count
+  builder_image      = local.builder_image
+  git_url            = local.template_git_url
+  cache_repo         = var.cache_repo
+  dockerfile_path    = local.dockerfile_path
+  build_context_path = local.build_context_path
+  workspace_folder   = local.workspace_folder
+  extra_env          = local.envbuilder_env
+  insecure           = var.insecure_cache_repo
 }
 
 # ─── Coder agent ─────────────────────────────────────────────────────────────
@@ -338,32 +370,6 @@ resource "kubernetes_job_v1" "shared_home" {
   }
 }
 
-# ─── Envbuilder build context ────────────────────────────────────────────────
-
-resource "kubernetes_config_map" "build_context" {
-  metadata {
-    name      = local.build_context_cm_name
-    namespace = var.namespace
-
-    labels = {
-      "app.kubernetes.io/name"       = "coder-workspace-build-context"
-      "app.kubernetes.io/managed-by" = "coder"
-      "coder.com/workspace-id"       = data.coder_workspace.me.id
-      "coder.com/workspace-name"     = data.coder_workspace.me.name
-    }
-  }
-
-  data = {
-    Dockerfile               = file(local.dockerfile_path)
-    "base-packages.sh"       = file("${path.module}/dockerfiles/scripts/base-packages.sh")
-    "configure-apt-cache.sh" = file("${path.module}/dockerfiles/scripts/configure-apt-cache.sh")
-    "desktop-packages.sh"    = file("${path.module}/dockerfiles/scripts/desktop-packages.sh")
-    "install-code-server.sh" = file("${path.module}/dockerfiles/scripts/install-code-server.sh")
-    "setup-coder-user.sh"    = file("${path.module}/dockerfiles/scripts/setup-coder-user.sh")
-    "xfce-packages.sh"       = file("${path.module}/dockerfiles/scripts/xfce-packages.sh")
-  }
-}
-
 # ─── Workspace deployment ────────────────────────────────────────────────────
 
 resource "kubernetes_deployment_v1" "workspace" {
@@ -371,7 +377,6 @@ resource "kubernetes_deployment_v1" "workspace" {
 
   depends_on = [
     kubernetes_job_v1.shared_home,
-    kubernetes_config_map.build_context,
   ]
 
   wait_for_rollout = false
@@ -438,31 +443,9 @@ resource "kubernetes_deployment_v1" "workspace" {
           }
         }
 
-        init_container {
-          name  = "init-build-context"
-          image = "busybox:1.37.0"
-
-          command = [
-            "sh",
-            "-c",
-            "rm -rf /workspaces/context && mkdir -p /workspaces/context/dockerfiles/scripts && cp /template-context/Dockerfile /workspaces/context/Dockerfile && cp /template-context/*.sh /workspaces/context/dockerfiles/scripts/",
-          ]
-
-          volume_mount {
-            name       = "workspace"
-            mount_path = "/workspaces"
-          }
-
-          volume_mount {
-            name       = "build-context"
-            mount_path = "/template-context"
-            read_only  = true
-          }
-        }
-
         container {
           name              = "workspace"
-          image             = local.builder_image
+          image             = var.cache_repo == "" ? local.builder_image : envbuilder_cached_image.ubuntu[0].image
           image_pull_policy = "Always"
 
           security_context {
@@ -470,7 +453,7 @@ resource "kubernetes_deployment_v1" "workspace" {
           }
 
           dynamic "env" {
-            for_each = local.envbuilder_env
+            for_each = nonsensitive(var.cache_repo == "" ? local.envbuilder_env : envbuilder_cached_image.ubuntu[0].env_map)
             content {
               name  = env.key
               value = env.value
@@ -517,14 +500,6 @@ resource "kubernetes_deployment_v1" "workspace" {
           name = "workspace"
 
           empty_dir {}
-        }
-
-        volume {
-          name = "build-context"
-
-          config_map {
-            name = kubernetes_config_map.build_context.metadata[0].name
-          }
         }
 
         affinity {
