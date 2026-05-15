@@ -33,7 +33,7 @@ variable "storage_class" {
 variable "image_registry" {
   description = "Container registry hosting pre-built Ubuntu workspace images"
   type        = string
-  default     = "coder-image-cache.coder.svc.cluster.local:5000"
+  default     = "ghcr.io/umutediz"
 }
 
 # ─── User parameters ─────────────────────────────────────────────────────────

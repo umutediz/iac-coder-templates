@@ -1,4 +1,4 @@
-FROM coder-image-cache.coder.svc.cluster.local:5000/ubuntu-22.04-cli:latest
+FROM ghcr.io/umutediz/ubuntu-22.04-cli:latest
 
 USER root
 
