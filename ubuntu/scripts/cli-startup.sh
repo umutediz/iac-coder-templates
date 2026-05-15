@@ -57,7 +57,7 @@ EOF
   fi
 fi
 
-if command -v code-server >/dev/null 2>&1 && ! pgrep -u "$(id -u)" -f 'code-server.*--port 13337' >/dev/null 2>&1; then
+if command -v code-server >/dev/null 2>&1 && ! curl -fsS http://127.0.0.1:13337/healthz >/dev/null 2>&1; then
   code-server \
     --auth none \
     --host 127.0.0.1 \
