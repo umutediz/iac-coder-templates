@@ -1,10 +1,8 @@
 #!/bin/sh
 set -eu
 
-. /tmp/configure-apt-cache.sh
-
-apt_update
-apt_install \
+apt-get update
+apt-get install -y --no-install-recommends \
   bash \
   build-essential \
   curl \
@@ -28,4 +26,4 @@ apt_install \
   vim \
   wget \
   zip
-apt_clean
+rm -rf /var/lib/apt/lists/*

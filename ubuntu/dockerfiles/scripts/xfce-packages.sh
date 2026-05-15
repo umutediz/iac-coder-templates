@@ -1,10 +1,8 @@
 #!/bin/sh
 set -eu
 
-. /tmp/configure-apt-cache.sh
-
-apt_update
-apt_install \
+apt-get update
+apt-get install -y --no-install-recommends \
   adwaita-icon-theme-full \
   elementary-xfce-icon-theme \
   greybird-gtk-theme \
@@ -12,4 +10,4 @@ apt_install \
   xfce4-goodies \
   xfce4-terminal \
   xubuntu-icon-theme
-apt_clean
+rm -rf /var/lib/apt/lists/*

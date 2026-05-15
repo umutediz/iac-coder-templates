@@ -1,10 +1,8 @@
 #!/bin/sh
 set -eu
 
-. /tmp/configure-apt-cache.sh
-
-apt_update
-apt_install \
+apt-get update
+apt-get install -y --no-install-recommends \
   dbus-x11 \
   libxkbcommon-x11-0 \
   nginx-light \
@@ -13,4 +11,4 @@ apt_install \
   websockify \
   xfonts-base \
   xrdp
-apt_clean
+rm -rf /var/lib/apt/lists/*

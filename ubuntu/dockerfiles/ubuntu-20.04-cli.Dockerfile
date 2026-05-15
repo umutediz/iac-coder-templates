@@ -4,10 +4,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     HOME=/home/coder \
     USER=coder \
-    SHELL=/bin/bash \
-    APT_CACHE_URL=http://cache-server.lab.ediz.dev:3142
+    SHELL=/bin/bash
 
-COPY dockerfiles/scripts/configure-apt-cache.sh /tmp/configure-apt-cache.sh
 COPY dockerfiles/scripts/base-packages.sh /tmp/base-packages.sh
 RUN sh /tmp/base-packages.sh
 
