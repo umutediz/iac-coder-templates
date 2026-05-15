@@ -30,28 +30,10 @@ variable "storage_class" {
   default     = "nfs-fast-annotated"
 }
 
-variable "cache_repo" {
-  description = "Container registry repository used as an envbuilder image cache"
+variable "image_registry" {
+  description = "Container registry hosting pre-built Ubuntu workspace images"
   type        = string
-  default     = "coder-image-cache.coder.svc.cluster.local:5000/coder-ubuntu-cache"
-}
-
-variable "insecure_cache_repo" {
-  description = "Enable this option if your cache registry does not serve HTTPS"
-  type        = bool
-  default     = true
-}
-
-variable "template_repo_url" {
-  description = "Public Git repository containing the Ubuntu envbuilder Dockerfiles"
-  type        = string
-  default     = "https://github.com/umutediz/iac-coder-templates.git"
-}
-
-variable "template_repo_ref" {
-  description = "Git ref for template_repo_url. Keep this aligned with the pushed template version."
-  type        = string
-  default     = "main"
+  default     = "coder-image-cache.coder.svc.cluster.local:5000"
 }
 
 # ─── User parameters ─────────────────────────────────────────────────────────
@@ -146,30 +128,8 @@ locals {
   home_pvc_name    = local.shared_home_name
   home_volume_size = "4Gi"
 
-  builder_image        = "ghcr.io/coder/envbuilder:1.3.0"
-  dockerfile_variant   = local.desktop_enabled ? "xfce" : "cli"
-  dockerfile_path      = "ubuntu/dockerfiles/ubuntu-${data.coder_parameter.os_version.value}-${local.dockerfile_variant}.Dockerfile"
-  build_context_path   = "ubuntu"
-  template_git_url     = var.template_repo_ref == "" ? var.template_repo_url : "${var.template_repo_url}#refs/heads/${var.template_repo_ref}"
-  workspace_folder     = "/workspaces/iac-coder-templates"
-  layer_cache_dir      = "/home/coder/.cache/envbuilder/layers"
-  base_image_cache_dir = "/home/coder/.cache/envbuilder/base"
-
-  envbuilder_env = {
-    CODER_AGENT_TOKEN                 = coder_agent.main.token
-    CODER_AGENT_URL                   = replace(data.coder_workspace.me.access_url, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
-    ENVBUILDER_INIT_SCRIPT            = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
-    ENVBUILDER_GIT_URL                = local.template_git_url
-    ENVBUILDER_DOCKERFILE_PATH        = local.dockerfile_path
-    ENVBUILDER_BUILD_CONTEXT_PATH     = local.build_context_path
-    ENVBUILDER_WORKSPACE_FOLDER       = local.workspace_folder
-    ENVBUILDER_LAYER_CACHE_DIR        = local.layer_cache_dir
-    ENVBUILDER_BASE_IMAGE_CACHE_DIR   = local.base_image_cache_dir
-    ENVBUILDER_CACHE_REPO = var.cache_repo
-    ENVBUILDER_PUSH_IMAGE = var.cache_repo != "" ? "true" : ""
-    ENVBUILDER_INSECURE   = tostring(var.insecure_cache_repo)
-    HOME                  = "/home/coder"
-  }
+  image_variant   = local.desktop_enabled ? "xfce" : "cli"
+  workspace_image = "${var.image_registry}/ubuntu-${data.coder_parameter.os_version.value}-${local.image_variant}:latest"
 
   desktop_settings      = local.xfce_enabled ? file("${path.module}/scripts/xfce-settings.sh") : ""
   desktop_pre_start     = ""
@@ -427,19 +387,58 @@ resource "kubernetes_deployment_v1" "workspace" {
 
         container {
           name              = "workspace"
-          image             = local.builder_image
+          image             = local.workspace_image
           image_pull_policy = "Always"
 
+          command = ["/bin/sh", "-c", nonsensitive(coder_agent.main.init_script)]
+
           security_context {
-            run_as_user = 0
+            run_as_user = 1000
           }
 
-          dynamic "env" {
-            for_each = nonsensitive(local.envbuilder_env)
-            content {
-              name  = env.key
-              value = env.value
-            }
+          env {
+            name  = "CODER_AGENT_TOKEN"
+            value = nonsensitive(coder_agent.main.token)
+          }
+
+          env {
+            name  = "CODER_AGENT_URL"
+            value = data.coder_workspace.me.access_url
+          }
+
+          env {
+            name  = "HOME"
+            value = "/home/coder"
+          }
+
+          env {
+            name  = "USER"
+            value = "coder"
+          }
+
+          env {
+            name  = "SHELL"
+            value = "/bin/bash"
+          }
+
+          env {
+            name  = "GIT_AUTHOR_NAME"
+            value = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+          }
+
+          env {
+            name  = "GIT_AUTHOR_EMAIL"
+            value = data.coder_workspace_owner.me.email
+          }
+
+          env {
+            name  = "GIT_COMMITTER_NAME"
+            value = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+          }
+
+          env {
+            name  = "GIT_COMMITTER_EMAIL"
+            value = data.coder_workspace_owner.me.email
           }
 
           resources {
@@ -452,11 +451,6 @@ resource "kubernetes_deployment_v1" "workspace" {
           volume_mount {
             name       = "home"
             mount_path = "/home/coder"
-          }
-
-          volume_mount {
-            name       = "workspace"
-            mount_path = "/workspaces"
           }
         }
 
@@ -476,12 +470,6 @@ resource "kubernetes_deployment_v1" "workspace" {
 
             content {}
           }
-        }
-
-        volume {
-          name = "workspace"
-
-          empty_dir {}
         }
 
         affinity {
@@ -528,7 +516,7 @@ resource "coder_metadata" "workspace_info" {
   }
 
   item {
-    key   = "cache repo"
-    value = var.cache_repo != "" ? var.cache_repo : "not enabled"
+    key   = "image"
+    value = local.workspace_image
   }
 }
