@@ -9,6 +9,5 @@ apt-get install -y --no-install-recommends \
   novnc \
   tigervnc-standalone-server \
   websockify \
-  xfonts-base \
-  xrdp
+  xfonts-base
 rm -rf /var/lib/apt/lists/*
