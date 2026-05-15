@@ -5,13 +5,13 @@ if [ ! -f "$HOME/.bashrc" ]; then
 fi
 
 export DISPLAY=:1
+export XAUTHORITY=/tmp/.Xauthority
 
 ${desktop_settings}
 ${desktop_pre_start}
 
 mkdir -p "$HOME/.vnc"
-touch "$HOME/.Xauthority"
-chmod 600 "$HOME/.Xauthority" || true
+touch "$XAUTHORITY"
 
 cat > /tmp/vnc-xstartup <<'EOF'
 ${vnc_xstartup}
