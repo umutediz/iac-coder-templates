@@ -9,6 +9,9 @@ export DISPLAY=:1
 ${desktop_settings}
 ${desktop_pre_start}
 
+mkdir -p /tmp/.X11-unix /tmp/.ICE-unix
+chmod 1777 /tmp/.X11-unix /tmp/.ICE-unix
+
 mkdir -p "$HOME/.vnc"
 touch "$HOME/.Xauthority"
 
