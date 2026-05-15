@@ -56,3 +56,12 @@ EOF
     ' "$settings_file" > "$tmp_settings" && mv "$tmp_settings" "$settings_file"
   fi
 fi
+
+if command -v code-server >/dev/null 2>&1 && ! pgrep -u "$(id -u)" -f 'code-server.*--port 13337' >/dev/null 2>&1; then
+  code-server \
+    --auth none \
+    --host 127.0.0.1 \
+    --port 13337 \
+    "$HOME" \
+    >/tmp/code-server.log 2>&1 &
+fi

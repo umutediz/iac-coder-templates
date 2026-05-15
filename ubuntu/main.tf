@@ -220,14 +220,23 @@ resource "coder_agent" "main" {
   }
 }
 
-# See https://registry.coder.com/modules/coder/code-server
-module "code-server" {
-  count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/coder/code-server/coder"
-  version = "~> 1.0"
+resource "coder_app" "code_server" {
+  count = data.coder_workspace.me.start_count
 
-  agent_id = coder_agent.main.id
-  order    = 1
+  agent_id     = coder_agent.main.id
+  slug         = "code-server"
+  display_name = "code-server"
+  icon         = "/icon/code.svg"
+  url          = "http://localhost:13337/?folder=/home/coder"
+  subdomain    = false
+  share        = "owner"
+  order        = 1
+
+  healthcheck {
+    url       = "http://localhost:13337/healthz"
+    interval  = 3
+    threshold = 10
+  }
 }
 
 resource "coder_app" "novnc" {
