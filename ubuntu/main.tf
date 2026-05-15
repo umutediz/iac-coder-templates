@@ -30,12 +30,6 @@ variable "storage_class" {
   default     = "nfs-fast-annotated"
 }
 
-variable "image_registry" {
-  description = "Container registry hosting pre-built Ubuntu workspace images"
-  type        = string
-  default     = "ghcr.io/umutediz"
-}
-
 # ─── User parameters ─────────────────────────────────────────────────────────
 
 data "coder_parameter" "os_version" {
@@ -129,7 +123,7 @@ locals {
   home_volume_size = "4Gi"
 
   image_variant   = local.desktop_enabled ? "xfce" : "cli"
-  workspace_image = "${var.image_registry}/ubuntu-${data.coder_parameter.os_version.value}-${local.image_variant}:latest"
+  workspace_image = "ghcr.io/umutediz/ubuntu-${data.coder_parameter.os_version.value}-${local.image_variant}:latest"
 
   desktop_settings      = local.xfce_enabled ? file("${path.module}/scripts/xfce-settings.sh") : ""
   desktop_pre_start     = ""
