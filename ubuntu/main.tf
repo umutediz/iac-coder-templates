@@ -8,10 +8,6 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.25"
     }
-    envbuilder = {
-      source  = "coder/envbuilder"
-      version = "~> 1.0"
-    }
   }
 }
 
@@ -19,7 +15,6 @@ provider "coder" {}
 
 # Uses in-cluster kubeconfig when running inside the Coder pod.
 provider "kubernetes" {}
-provider "envbuilder" {}
 
 # ─── Admin variables ─────────────────────────────────────────────────────────
 
@@ -192,18 +187,6 @@ locals {
   _cli_startup = file("${path.module}/scripts/cli-startup.sh")
 
   startup_script = local.desktop_enabled ? local._desktop_startup : local._cli_startup
-}
-
-resource "envbuilder_cached_image" "ubuntu" {
-  count              = var.cache_repo == "" ? 0 : data.coder_workspace.me.start_count
-  builder_image      = local.builder_image
-  git_url            = local.template_git_url
-  cache_repo         = var.cache_repo
-  dockerfile_path    = local.dockerfile_path
-  build_context_path = local.build_context_path
-  workspace_folder   = local.workspace_folder
-  extra_env          = local.envbuilder_env
-  insecure           = var.insecure_cache_repo
 }
 
 # ─── Coder agent ─────────────────────────────────────────────────────────────
@@ -444,7 +427,7 @@ resource "kubernetes_deployment_v1" "workspace" {
 
         container {
           name              = "workspace"
-          image             = var.cache_repo == "" ? local.builder_image : envbuilder_cached_image.ubuntu[0].image
+          image             = local.builder_image
           image_pull_policy = "Always"
 
           security_context {
@@ -452,7 +435,7 @@ resource "kubernetes_deployment_v1" "workspace" {
           }
 
           dynamic "env" {
-            for_each = nonsensitive(var.cache_repo == "" ? local.envbuilder_env : envbuilder_cached_image.ubuntu[0].env_map)
+            for_each = nonsensitive(local.envbuilder_env)
             content {
               name  = env.key
               value = env.value
