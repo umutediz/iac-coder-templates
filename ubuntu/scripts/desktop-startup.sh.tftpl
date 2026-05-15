@@ -28,7 +28,7 @@ nginx -s stop -c /tmp/novnc-coder/nginx.conf 2>/dev/null || true
 rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 2>/dev/null || true
 rm -f /tmp/novnc-nginx.pid 2>/dev/null || true
 
-vncserver :1
+vncserver :1 -SecurityTypes None -localhost yes
 
 websockify \
   --daemon \
