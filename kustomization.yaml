@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: coder
+
+configMapGenerator:
+  - name: coder-template-ubuntu
+    files:
+      - main.tf=ubuntu/main.tf
+      - files.novnc-index.html=ubuntu/files/novnc-index.html
+      - files.novnc-nginx.conf=ubuntu/files/novnc-nginx.conf
+      - files.vnc-config=ubuntu/files/vnc-config
+      - scripts.cli-startup.sh=ubuntu/scripts/cli-startup.sh
+      - scripts.desktop-startup.sh.tftpl=ubuntu/scripts/desktop-startup.sh.tftpl
+      - scripts.ensure-home-pvc.sh.tftpl=ubuntu/scripts/ensure-home-pvc.sh.tftpl
+      - scripts.init-home.sh=ubuntu/scripts/init-home.sh
+      - scripts.vnc-xstartup.sh.tftpl=ubuntu/scripts/vnc-xstartup.sh.tftpl
+      - scripts.xfce-settings.sh=ubuntu/scripts/xfce-settings.sh
+      - dockerfiles.ubuntu-20.04-cli.Dockerfile=ubuntu/dockerfiles/ubuntu-20.04-cli.Dockerfile
+      - dockerfiles.ubuntu-20.04-xfce.Dockerfile=ubuntu/dockerfiles/ubuntu-20.04-xfce.Dockerfile
+      - dockerfiles.ubuntu-22.04-cli.Dockerfile=ubuntu/dockerfiles/ubuntu-22.04-cli.Dockerfile
+      - dockerfiles.ubuntu-22.04-xfce.Dockerfile=ubuntu/dockerfiles/ubuntu-22.04-xfce.Dockerfile
+      - dockerfiles.ubuntu-24.04-cli.Dockerfile=ubuntu/dockerfiles/ubuntu-24.04-cli.Dockerfile
+      - dockerfiles.ubuntu-24.04-xfce.Dockerfile=ubuntu/dockerfiles/ubuntu-24.04-xfce.Dockerfile
+      - dockerfiles.scripts.base-packages.sh=ubuntu/dockerfiles/scripts/base-packages.sh
+      - dockerfiles.scripts.configure-apt-cache.sh=ubuntu/dockerfiles/scripts/configure-apt-cache.sh
+      - dockerfiles.scripts.desktop-packages.sh=ubuntu/dockerfiles/scripts/desktop-packages.sh
+      - dockerfiles.scripts.install-code-server.sh=ubuntu/dockerfiles/scripts/install-code-server.sh
+      - dockerfiles.scripts.setup-coder-user.sh=ubuntu/dockerfiles/scripts/setup-coder-user.sh
+      - dockerfiles.scripts.xfce-packages.sh=ubuntu/dockerfiles/scripts/xfce-packages.sh
+  - name: coder-template-devcontainer
+    files:
+      - main.tf=devcontainer/main.tf
+      - README.md=devcontainer/README.md
+
+resources:
+  - devcontainer-sync-job.yaml
+  - ubuntu-sync-job.yaml

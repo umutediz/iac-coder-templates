@@ -1,0 +1,10 @@
+mkdir -p "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
+cat > "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xsettings" version="1.0">
+  <property name="Net" type="empty">
+    <property name="ThemeName" type="string" value="Greybird"/>
+    <property name="IconThemeName" type="string" value="elementary-xfce-dark"/>
+  </property>
+</channel>
+EOF

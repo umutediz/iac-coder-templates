@@ -1,0 +1,65 @@
+set -eu
+
+if [ ! -f "$HOME/.bashrc" ]; then
+  cp -r /etc/skel/. "$HOME/" 2>/dev/null || true
+fi
+
+export DISPLAY=:1
+
+${desktop_settings}
+${desktop_pre_start}
+
+mkdir -p "$HOME/.vnc"
+touch "$HOME/.Xauthority"
+chmod 600 "$HOME/.Xauthority" || true
+
+cat > "$HOME/.vnc/xstartup" <<'EOF'
+${vnc_xstartup}
+EOF
+chmod +x "$HOME/.vnc/xstartup"
+
+cat > "$HOME/.vnc/config" <<'EOF'
+${vnc_config}
+EOF
+
+vncserver -kill :1 2>/dev/null || true
+pkill -x websockify 2>/dev/null || true
+nginx -s stop -c /tmp/novnc-coder/nginx.conf 2>/dev/null || true
+
+rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 2>/dev/null || true
+rm -f /tmp/novnc-nginx.pid 2>/dev/null || true
+
+vncserver :1
+
+websockify \
+  --daemon \
+  --log-file=/tmp/websockify.log \
+  127.0.0.1:6080 127.0.0.1:5901
+
+mkdir -p /tmp/novnc-coder
+mkdir -p /tmp/novnc-nginx-client-body
+mkdir -p /tmp/novnc-nginx-proxy
+mkdir -p /tmp/novnc-nginx-fastcgi
+mkdir -p /tmp/novnc-nginx-uwsgi
+mkdir -p /tmp/novnc-nginx-scgi
+
+cat > /tmp/novnc-coder/index.html <<'EOF'
+${novnc_index_html}
+EOF
+
+cat > /tmp/novnc-coder/nginx.conf <<'EOF'
+${novnc_nginx_conf}
+EOF
+
+if ! command -v nginx >/dev/null 2>&1; then
+  echo "ERROR: nginx is not installed. Add nginx-light to the GUI package list." >&2
+  exit 1
+fi
+
+nginx -t -c /tmp/novnc-coder/nginx.conf
+nginx -c /tmp/novnc-coder/nginx.conf -g 'daemon on;'
+
+echo "Desktop startup complete."
+echo "VNC:        127.0.0.1:5901"
+echo "websockify: 127.0.0.1:6080"
+echo "noVNC:      127.0.0.1:6081"

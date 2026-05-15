@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: coder-template-sync-devcontainer
+  namespace: coder
+  annotations:
+    # Force-replace this Job (immutable resource) whenever its spec changes,
+    # which happens automatically when the ConfigMap hash suffix rolls over.
+    kustomize.toolkit.fluxcd.io/force: enabled
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: sync
+          image: ghcr.io/coder/coder:v2.32.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for Coder to be ready..."
+              until curl -sf "$CODER_URL/healthz" >/dev/null 2>&1; do
+                sleep 5
+              done
+              echo "Coder ready. Pushing template..."
+              ls -la /workspace
+              rm -rf /tmp/template
+              mkdir -p /tmp/template
+              cp -L /workspace/main.tf /workspace/README.md /tmp/template/
+              ls -la /tmp/template
+              coder templates push \
+                --directory /tmp/template \
+                --yes \
+                Kubernetes-Devcontainer
+              echo "Done."
+          env:
+            - name: CODER_URL
+              value: https://coder.ediz.dev
+            - name: CODER_ORGANIZATION
+              value: default
+            - name: CODER_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: coder-template-token
+                  key: token
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          configMap:
+            name: coder-template-devcontainer

@@ -1,0 +1,21 @@
+set -e
+
+cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${pvc_name}
+  namespace: ${namespace}
+  labels:
+    app.kubernetes.io/name: coder-home
+    coder.com/home-mode: shared
+    coder.com/user-id: ${user_id}
+    coder.com/user-name: ${user_name}
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ${storage_class}
+  resources:
+    requests:
+      storage: ${storage_size}
+EOF

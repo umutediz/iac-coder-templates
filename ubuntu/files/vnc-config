@@ -1,0 +1,4 @@
+geometry=1280x800
+depth=24
+localhost=yes
+SecurityTypes=None
