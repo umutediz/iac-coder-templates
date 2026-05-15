@@ -152,8 +152,8 @@ locals {
   build_context_path   = "ubuntu"
   template_git_url     = var.template_repo_ref == "" ? var.template_repo_url : "${var.template_repo_url}#refs/heads/${var.template_repo_ref}"
   workspace_folder     = "/workspaces/iac-coder-templates"
-  layer_cache_dir      = "${local.workspace_folder}/.cache/envbuilder/layers"
-  base_image_cache_dir = "${local.workspace_folder}/.cache/envbuilder/base"
+  layer_cache_dir      = "/home/coder/.cache/envbuilder/layers"
+  base_image_cache_dir = "/home/coder/.cache/envbuilder/base"
 
   envbuilder_env = {
     CODER_AGENT_TOKEN                 = coder_agent.main.token
